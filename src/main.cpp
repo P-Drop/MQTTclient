@@ -18,23 +18,27 @@
 char mensaje[500] = "";
 int ultimaVez = millis();
 
+boolean rele_state = false;
+
 WiFiClient clienteWiFi;
 PubSubClient clienteMQTT(clienteWiFi);
 
 void callback(char *topico, byte *cargaUtil, unsigned int longitudDeDatos){
   Serial.print("Se ha recibido el mensaje en: ");
   Serial.println(topico);
-  char accion = '0';
+  String accion = "";
   Serial.print("Contenido: ");
   for(unsigned int i = 0; i < longitudDeDatos; i++){
-    accion = (char)cargaUtil[i];
-    Serial.print(accion);
+    accion += (char)cargaUtil[i];
+    Serial.println(accion);
   }
-  if(accion == '1'){
+  if(accion == "ON"){
     digitalWrite(RELE, LOW);
+    rele_state = true;
   }
-  else if(accion == '0'){
+  else if(accion == "OFF"){
     digitalWrite(RELE, HIGH);
+    rele_state = false;
   }
   else{
     Serial.print("Accion no definida");
@@ -68,6 +72,8 @@ digitalWrite(RELE, HIGH);
   }
   Serial.println("\nConectado");
   digitalWrite(LEDR, HIGH);
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
 
 // Conectar a servidor MQTT
   clienteMQTT.setServer(SERVIDOR_MQTT, PUERTO);
@@ -86,25 +92,23 @@ digitalWrite(RELE, HIGH);
     delay(250);
     digitalWrite(LEDV, LOW);
     delay(250);
-    clienteMQTT.subscribe("lab/practicas1");
+    clienteMQTT.subscribe("lab/rele");
   }
   digitalWrite(LEDV, HIGH);
 }
 
-// Variable contador
-  int contador = 0;
 
 void loop() {
 
   clienteMQTT.loop();
 
   if(millis() - ultimaVez > TIEMPO_DE_ESPERA){
-    sprintf(mensaje, "Contador: %d", contador);
+    
+    sprintf(mensaje, rele_state ? "on" : "off");
 
     Serial.println("\nPublicando mensaje...");
-    clienteMQTT.publish("lab/practicas2", mensaje);
+    clienteMQTT.publish("lab/sensor", mensaje);
     Serial.println("OK");
-    contador++;
     ultimaVez = millis();
   }
   delay(10);
